@@ -1,0 +1,7 @@
+.idea
+logs/*
+files/*.gz
+target/
+docker/es2/analysis-kuromoji-*.zip
+docker/es6/analysis-kuromoji-*.zip
+!.gitkeep

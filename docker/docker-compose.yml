@@ -1,0 +1,19 @@
+version: '2'
+services:
+  es6:
+    build: es6
+    image: es-rest-test-6
+    container_name: es-rest-test-6
+    ports:
+    - "9200:9200"
+    - "9300:9300"
+    environment:
+    - "ES_JAVA_OPTS=-Xms400m -Xmx400m"
+  es2:
+    build: es2
+    image: es-rest-test-2
+    container_name: es-rest-test-2
+    ports:
+    - "9201:9200"
+    - "9301:9300"
+    
