@@ -80,8 +80,8 @@ object TryESMain extends App{
 
       val options = buildOptions(others)
 
-      val csvFile=new File("files/wikipedia.csv")
-      Wikipedia.readFromInternet(csvFile,new File(options.getOrElse(WikipediaHtmlFile, "./files/wikipedia.json.gz")))
+      val csvFile=new File(options.getOrElse(WikipediaInputFile,"./files/wikipedia.csv"))
+      Wikipedia.readFromInternet(csvFile,new File(options.getOrElse(WikipediaHtmlFile, "./html/wikipedia.json.gz")))
 
     case "load" :: others =>
       val options = buildOptions(others)
