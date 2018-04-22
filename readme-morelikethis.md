@@ -139,6 +139,7 @@ https://www.channelcinema.com/ranking/2017actressjpbest.html
 sbt "runMain tryes.main.TryESMain wikipedia"
 
 # wikipediaからHTMLデータをダウンロードして結果をgzファイルに保存
+set SBT_OPTS=-Xms256m -Xmx1024m
 sbt "runMain tryes.main.TryESMain load"
 ```
 
@@ -155,8 +156,8 @@ sbt "runMain tryes.main.TryESMain load"
 more_like_this_ids(){
   #echo '###get###'
   #curl -XGET -H 'Content-Type: application/json' "http://localhost:9200/try-mlt/_doc/${1}"
-  start_time=`date +%s`
-  echo '###quey more like this###'
+  #start_time=`date +%s`
+  #echo '###quey more like this###'
   curl -XPOST -H 'Content-Type: application/json' http://localhost:9200/try-mlt/_search?pretty -d "
   {
     \"query\":{
@@ -178,7 +179,7 @@ more_like_this_ids(){
   }"
   end_time=`date +%s`
   time=$((end_time - start_time))
-  echo "${time} seconds"
+  #echo "${time} seconds"
 }
 ```
 
@@ -242,5 +243,34 @@ more_like_this_ids historical-tokugawa-ieyasu body_all_strip.ngram 20000
 
 ```
 
+# パラメータ
 
+* max_query_terms
 
+```text
+選択されるクエリ用語の最大数。 
+この値を大きくすると、クエリの実行速度を犠牲にして精度が向上します。 
+デフォルトは25です。
+```
+
+* min_term_freq
+
+```text
+入力文書からその用語が無視される最小用語頻度。 
+デフォルトは2です。
+```
+
+* min_freq_doc
+
+```text
+入力文書からその用語が無視される最小の文書頻度。 
+デフォルトは5です。
+```
+
+* max_doc_freq
+
+```text
+入力文書からその用語が無視される最大文書頻度。 
+これは、ストップワードなどの頻繁な単語を無視するために役立ちます。 
+デフォルトは無制限（0）です。
+```

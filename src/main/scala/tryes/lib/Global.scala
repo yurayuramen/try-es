@@ -19,12 +19,13 @@ object Global {
 
 
   def shutdown(): Unit ={
-
+    System.exit(0)
+    /*
     actorSystem.terminate().onComplete{
       case _=>
         System.exit(0)
     }
-
+    */
   }
 
 }

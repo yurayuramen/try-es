@@ -67,7 +67,7 @@ object ESLoader {
 
 
 
-    val es = new ESQuery()("try-mlt",Some("_doc"))
+    val es = new ESQuery()("try-mlt")
 
     def put(): Unit ={
       val z = list2.map{case(id,entry)=>

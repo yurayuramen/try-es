@@ -1,5 +1,6 @@
 package tryes.es
 
+import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.{DeserializationFeature, ObjectMapper, SerializationFeature}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.Logger
@@ -13,11 +14,14 @@ object ESQuery{
   private val logger = Logger(this.getClass)
 
   object Results {
-    case class QueryRoot(total: Int, hits: Hits)
-    case class GetRoot(_index: String, _type: String, _id: String, _source: Source)
-    case class Hits(total: Int, hits: Seq[Hit])
-    case class Hit(_index: String, _type: String, _id: String, _score: Float, _source: Source)
-    case class Source(kind: String, name: String, html: String)
+    case class QueryRoot[Source](total: Int, hits: Option[Hits[Source]])
+    case class GetRoot[Source](_index: String, _type: String, _id: String, _source: Source)
+    case class Hits[Source](total: Int, hits: Seq[Hit[Source]])
+    case class Hit[Source](_index: String, _type: String, _id: String, _score: Float, _source: Source)
+    case class TryMLT(kind: String, name: String
+                      , body:String,body_all_strip:String,body_scrpt_strip:String,body_tag_strip:String
+                      , html:String,html_all_strip:String,html_scrpt_strip:String,html_tag_strip:String
+                     )
   }
   val maxQueryTermsManySettings =
     Map(
@@ -45,7 +49,7 @@ object ESQuery{
 }
 
 
-class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(index:String,`type`:Option[String]=None,settings:Map[String,_]=ESQuery.maxQueryTerms200Settings) {
+class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(index:String,`type`:String="_doc",settings:Map[String,_]=ESQuery.maxQueryTerms200Settings) {
 
 
   import ESQuery.Results._
@@ -64,12 +68,7 @@ class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(inde
   private[this] def getType(`type`:Option[String]): String =
     `type` match{
       case None =>
-        this.`type` match{
-          case None =>
-            throw new IllegalArgumentException("typeが指定されていません")
-          case Some(type2)=>
-            type2
-        }
+        this.`type`
       case Some(type2)=>
         type2
     }
@@ -108,13 +107,13 @@ class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(inde
 
 
 
-  def getByID(id:String,`type`:Option[String]=None)={
+  def getByID[T](id:String,`type`:Option[String]=None)(implicit typeReference: TypeReference[GetRoot[T]]):Future[GetRoot[T]]={
     val type2 = getType(`type`)
     val url = s"${urlPrefix}/${index}/${type2}/${id}"
 
     onComleteDebug(
     client.getHTML(url).map{case(status,body)=>
-      mapper.readValue(body,classOf[GetRoot])
+      mapper.readValue(body,typeReference)
     })
   }
 
@@ -122,7 +121,7 @@ class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(inde
   private[this] val FieldNames = Seq("html")
 
 
-  def queryMoreLikeThisByID(fields:String*)(ids:String*)(maxQueryTerms:Int=25,`type`:Option[String]=None) ={
+  def queryMoreLikeThisByID[T](fields:String*)(ids:String*)(maxQueryTerms:Int=25,`type`:Option[String]=None)(implicit typeReference: TypeReference[QueryRoot[T]]):Future[QueryRoot[T]] ={
 
     val others = Map(
       "min_term_freq" -> 1
@@ -146,29 +145,30 @@ class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(inde
       )
       ,"size" -> 10
     )
-    moreLikeThisInternal(query,`type`)
+    moreLikeThisInternal(query,typeReference,`type`)
   }
 
-  def queryMoreLikeThisByLikeText(likeText:String,`type`:Option[String]=None) ={
+  def queryMoreLikeThisByLikeText[T](fields:String*)(likeText:String ,`type`:Option[String]=None)(implicit typeReference: TypeReference[QueryRoot[T]]):Future[QueryRoot[T]] ={
 
 
     val query = Map(
       "query" -> Map(
         "more_like_this" -> Map(
-          "fields" -> FieldNames,
+          "fields" -> fields,
           "like_text" -> likeText,
           "percent_terms_to_match" -> 0.7,
+          "analyzer" -> "kuromoji"
         ).++(settings)
       ) //query
       , "size" -> 100
     )
-    moreLikeThisInternal(query,`type`)
+    moreLikeThisInternal(query,typeReference,`type`)
   }
 
-  private[this] def moreLikeThisInternal(query:Any,`type`:Option[String]) ={
+  private[this] def moreLikeThisInternal[T](query:Any,typeReference: TypeReference[QueryRoot[T]],`type`:Option[String]):Future[QueryRoot[T]] ={
     val type2 = getType(`type`)
 
-    val url = s"${urlPrefix}/${index}/${`type`}/_search"
+    val url = s"${urlPrefix}/${index}/${`type2`}/_search"
 
     //,"min_term_freq" -> 1
     //,"max_query_terms" -> 3000
@@ -178,15 +178,9 @@ class ESQuery(host:String="localhost",port:Int=9200,protocol:String="http")(inde
 
     val f = client.postHTML(url,query).map{case(_,body)=>
 
-      val root = mapper.readValue(body, classOf[QueryRoot])
+      val root = mapper.readValue(body, typeReference):QueryRoot[T]
 
-      Option(root.hits).fold{
-        val hits=Hits(total=0,hits=Nil)
-        root.copy(hits=hits)
-      }{_=>
-        root
-      }
-
+      root
     }
     onComleteDebug(f)
   }
